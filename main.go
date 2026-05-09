@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -30,6 +32,8 @@ type multiError interface {
 	error
 	Unwrap() []error
 }
+
+
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -86,6 +90,16 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 
 	}
 	return a
+}
+
+func httpError(ctx context.Context, w http.ResponseWriter, status int, err error) {
+	if logCtx, ok := ctx.Value(logContextKey).(*LogContext); ok {
+		logCtx.Error = err
+	}
+
+	msg := strings.ToLower(err.Error())
+
+	http.Error(w, msg, status)
 }
 
 func helperLoggerWith(logger *slog.Logger) *slog.Logger {
