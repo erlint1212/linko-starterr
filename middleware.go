@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"io"
 	"log/slog"
 	"net/http"
@@ -20,6 +21,7 @@ type spyReadCloser struct {
 }
 
 const logContextKey contextKey = "log_context"
+const requestIDKey contextKey = "request_id"
 
 type LogContext struct {
 	Username string
@@ -72,6 +74,7 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 				slog.Int("response_status", spyWriter.statusCode),
 				slog.Int("response_body_bytes", spyWriter.bytesWritten),
 				slog.Duration("duration", time.Since(start)),
+				slog.String("request_id", r.Header.Get("X-Request-ID")),
 			}
 
 			if logCtx.Username != "" {
@@ -85,4 +88,21 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 			logger.Info("Served request", logArgs...)
 		})
 	}
+}
+
+func requestID(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		requestID := r.Header.Get("X-Request-ID")
+
+		if requestID == "" {
+			requestID = rand.Text()
+		}
+
+		w.Header().Set("X-Request-ID", requestID)
+
+		ctx := context.WithValue(r.Context(), requestIDKey, requestID)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
