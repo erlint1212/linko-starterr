@@ -18,6 +18,8 @@ import (
 	"boot.dev/linko/internal/build"
 	"boot.dev/linko/internal/linkoerr"
 	"boot.dev/linko/internal/store"
+	"github.com/lmittmann/tint"
+	"github.com/mattn/go-isatty"
 	pkgerr "github.com/pkg/errors"
 )
 
@@ -32,8 +34,6 @@ type multiError interface {
 	error
 	Unwrap() []error
 }
-
-
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -123,9 +123,12 @@ func helperLoggerWith(logger *slog.Logger) *slog.Logger {
 
 func initializeLogger() (*slog.Logger, closeFunc, error) {
 
-	debugHandler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+	isTerm := isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())
+
+	debugHandler := tint.NewHandler(os.Stderr, &tint.Options{
 		Level:       slog.LevelDebug,
 		ReplaceAttr: replaceAttr,
+		NoColor:     !isTerm,
 	})
 
 	logFilePath, exists := os.LookupEnv("LINKO_LOG_FILE")
@@ -147,9 +150,10 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 			}
 		}
 
-		infoHandler := slog.NewJSONHandler(multiLoggerFile, &slog.HandlerOptions{
+		infoHandler := tint.NewHandler(multiLoggerFile, &tint.Options{
 			Level:       slog.LevelInfo,
 			ReplaceAttr: replaceAttr,
+			NoColor:     !isTerm,
 		})
 
 		logger := slog.New(slog.NewMultiHandler(
@@ -158,7 +162,6 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 		))
 
 		logger = helperLoggerWith(logger)
-
 
 		return logger, cleanup, nil
 	}
