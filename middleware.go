@@ -66,6 +66,11 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 
 			next.ServeHTTP(spyWriter, r)
 
+			reqID, ok := r.Context().Value(requestIDKey).(string)
+			if !ok {
+				reqID = "unknown"
+			}
+
 			logArgs := []any{
 				slog.String("method", r.Method),
 				slog.String("path", r.URL.Path),
@@ -74,7 +79,7 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 				slog.Int("response_status", spyWriter.statusCode),
 				slog.Int("response_body_bytes", spyWriter.bytesWritten),
 				slog.Duration("duration", time.Since(start)),
-				slog.String("request_id", r.Header.Get("X-Request-ID")),
+				slog.String("request_id", reqID),
 			}
 
 			if logCtx.Username != "" {
