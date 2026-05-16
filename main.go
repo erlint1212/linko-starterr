@@ -21,6 +21,7 @@ import (
 	"github.com/lmittmann/tint"
 	"github.com/mattn/go-isatty"
 	pkgerr "github.com/pkg/errors"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 type closeFunc func()
@@ -140,6 +141,19 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 		}
 
 		bufferedFile := bufio.NewWriterSize(multiLoggerFile, 8192)
+
+		logger := &lumberjack.Logger{
+			Filename:   multiLoggerFile,
+			MaxSize:    1,
+			MaxAge:     28,
+			MaxBackups: 10,
+			LocalTime:  false,
+			Compress:   true,
+		}
+
+		handlers = append(handlers, slog.NewJSONHandler(logger, &slog.HandlerOptions{
+			ReplaceAttr: replaceAttr,
+		}))
 
 		cleanup := func() {
 			if err := bufferedFile.Flush(); err != nil {
