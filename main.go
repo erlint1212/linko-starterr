@@ -122,6 +122,50 @@ func helperLoggerWith(logger *slog.Logger) *slog.Logger {
 	return logger
 }
 
+func initializeLogger(logFile string) (*slog.Logger, error) {
+	var (
+		handlers []slog.Handler
+	)
+
+	replaceAttr := func(groups []string, a slog.Attr) slog.Attr { /* ... */ }
+
+	// First initialize the console logger
+	handlers = append(handlers, tint.NewHandler(os.Stderr, &tint.Options{
+		ReplaceAttr: replaceAttr,
+		NoColor:     !(isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())),
+	}))
+
+	if logFile != "" {
+		file, err := os.OpenFile(logFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0x666)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open log file: %w", err)
+		}
+		bufferedFile := bufio.NewWriter(file)
+		handlers = append(handlers, slog.NewJSONHandler(bufferedFile, &slog.HandlerOptions{
+			ReplaceAttr: replaceAttr,
+		}))
+		defer func() {
+			if err := bufferedFile.Flush(); err != nil {
+				log.Printf("failed to flush log file: %w", err)
+				return
+			}
+			if err := file.Close(); err != nil {
+				log.Printf("failed to close log file: %w", err)
+				return
+			}
+		}
+	}
+
+	defer func() error {
+		var errs []error
+		for _, closer := range closers {
+			errs = append(errs, closer())
+		}
+		return errors.Join(errs...)
+	}
+	return slog.New(slog.NewMultiHandler(handlers...)), nil
+}
+
 func initializeLogger() (*slog.Logger, closeFunc, error) {
 
 	isTerm := isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())
