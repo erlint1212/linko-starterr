@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -49,7 +50,7 @@ func main() {
 
 func errorAttrs(err error) []slog.Attr {
 	attrs := []slog.Attr{
-		slog.String("message", err.Error()),
+		slog.String("message", strings.ToLower(err.Error())),
 	}
 
 	if stackErr, ok := errors.AsType[stackTracer](err); ok {
@@ -97,7 +98,14 @@ func httpError(ctx context.Context, w http.ResponseWriter, status int, err error
 		logCtx.Error = err
 	}
 
-	msg := strings.ToLower(err.Error())
+	msg := ""
+	dangErrCodes := []int{401, 403, 500}
+
+	if slices.Contains(dangErrCodes, status) {
+		msg = http.StatusText(status)
+	} else {
+		msg = err.Error()
+	}
 
 	http.Error(w, msg, status)
 }

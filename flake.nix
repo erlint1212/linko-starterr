@@ -34,6 +34,7 @@
             gotools # goimports, etc.
             go-tools # staticcheck
             delve # debugger
+            bootdev-cli
           ];
 
           shellHook = ''
