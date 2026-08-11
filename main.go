@@ -8,6 +8,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"slices"
@@ -89,6 +90,24 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 
 		return slog.GroupAttrs("error", errExtra...)
 
+	}
+	var sensitiveKeys = []string{"password", "key", "apikey", "secret", "pin", "creditcardno", "user"}
+
+	if slices.Contains(sensitiveKeys, a.Key) {
+		a.Value = slog.StringValue("[REDACTED]")
+	}
+	if a.Value.Kind() == slog.KindString {
+		strValue := a.Value.String()
+		u, err := url.Parse(strValue)
+		if err != nil {
+			return a
+		}
+		if u.User != nil {
+			if _, hasPassword := u.User.Password(); hasPassword {
+				u.User = url.UserPassword(u.User.Username(), "[REDACTED]")
+				a.Value = slog.StringValue(u.String())
+			}
+		}
 	}
 	return a
 }
