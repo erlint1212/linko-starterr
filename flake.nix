@@ -35,6 +35,7 @@
             go-tools # staticcheck
             delve # debugger
             bootdev-cli
+            docker
           ];
 
           shellHook = ''

@@ -2,4 +2,7 @@ data
 linko
 *~
 vendor/
+**.log
 *.log
+**.gz
+*.gz
