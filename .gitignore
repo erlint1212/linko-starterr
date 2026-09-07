@@ -6,3 +6,7 @@ vendor/
 *.log
 **.gz
 *.gz
+*.pprof*
+**.pprof**
+*.prof*
+**.prof**
