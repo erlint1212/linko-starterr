@@ -17,6 +17,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // httpRequestsTotal counts requests by method, path and status.
@@ -67,9 +68,11 @@ func metricsMiddleware(next http.Handler) http.Handler {
 func newServer(store store.Store, port int, cancel context.CancelFunc, logger *slog.Logger) *server {
 	mux := http.NewServeMux()
 
+	h := otelhttp.NewHandler(mux, "http.server")
+
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
-		Handler: requestLogger(logger)(requestID(metricsMiddleware(mux))),
+		Handler: requestLogger(logger)(requestID(metricsMiddleware(h))),
 	}
 
 	s := &server{

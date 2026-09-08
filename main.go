@@ -189,6 +189,20 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 
 func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir string) int {
 
+	tracer_provider, err := initTracing(ctx)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to initialize tracer provider: %v\n", err)
+		return 1
+	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := tracer_provider(shutdownCtx); err != nil {
+			log.Printf("Error shutting down tracer provider: %v", err)
+		}
+	}()
+
 	logger, cleanup, err := initializeLogger()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to initialize logger: %v\n", err)
